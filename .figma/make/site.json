@@ -1,0 +1,10 @@
+{
+  "description": "Provides personalized hydration guidance by forecasting optimal fluid intake based on weather, activity, and schedule for smarter health management.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
