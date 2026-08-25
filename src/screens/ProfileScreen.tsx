@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { authService, type UserAccount, type UserProfile } from '../services/auth'
+import { authService, type UserAccount, type UserProfile, DEFAULT_SCHEDULE } from '../services/auth'
 
 const activityLevels: UserProfile['activityLevel'][] = ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active']
 const sweatRates: UserProfile['sweatRate'][] = ['Low', 'Moderate', 'High', 'Very High']
@@ -14,12 +14,17 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
   // User profile local state
   const [profile, setProfile] = useState<UserProfile>(() => {
     return currentUser?.profile || {
-      age: 28,
-      weight: 72,
-      height: 178,
+      age: 26,
+      weight: 70,
+      height: 175,
       gender: 'Male',
       activityLevel: 'Moderate',
+      workType: 'desk',
+      exerciseMins: 45,
+      outdoorHours: 1.5,
+      caffeineCups: 1,
       sweatRate: 'Moderate',
+      schedule: DEFAULT_SCHEDULE,
       baseTargetLiters: 2.8,
       locationEnabled: true,
       calendarConnected: true,
@@ -28,10 +33,12 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
   })
 
   const [isEditingInfo, setIsEditingInfo] = useState(false)
-  const [editAge, setEditAge] = useState(String(profile.age || 28))
-  const [editWeight, setEditWeight] = useState(String(profile.weight || 72))
-  const [editHeight, setEditHeight] = useState(String(profile.height || 178))
+  const [editAge, setEditAge] = useState(String(profile.age || 26))
+  const [editWeight, setEditWeight] = useState(String(profile.weight || 70))
+  const [editHeight, setEditHeight] = useState(String(profile.height || 175))
   const [editGender, setEditGender] = useState<'Male' | 'Female' | 'Other'>(profile.gender || 'Male')
+  const [editWorkType, setEditWorkType] = useState<UserProfile['workType']>(profile.workType || 'desk')
+  const [editExerciseMins, setEditExerciseMins] = useState(profile.exerciseMins || 45)
 
   // Password change state
   const [showPasswordChange, setShowPasswordChange] = useState(false)
@@ -44,15 +51,17 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
 
   // Save personal info updates
   const handleSavePersonalInfo = () => {
-    const w = parseFloat(editWeight) || 72
-    const h = parseFloat(editHeight) || 178
-    const a = parseInt(editAge, 10) || 28
+    const w = parseFloat(editWeight) || 70
+    const h = parseFloat(editHeight) || 175
+    const a = parseInt(editAge, 10) || 26
 
     const updates: Partial<UserProfile> = {
       weight: w,
       height: h,
       age: a,
       gender: editGender,
+      workType: editWorkType,
+      exerciseMins: editExerciseMins,
     }
 
     setProfile((prev) => ({ ...prev, ...updates }))
@@ -135,7 +144,6 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
     }
   }
 
-  // Initials
   const fullName = currentUser?.fullName || 'Jamie Mitchell'
   const email = currentUser?.email || 'jamie@example.com'
   const username = currentUser?.username || 'jamie'
@@ -161,7 +169,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
           pointerEvents: 'none',
         }} />
         <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 18px', letterSpacing: -0.3 }}>
-          Profile & Account
+          Profile & Health Settings
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -181,7 +189,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
               @{username} · {email}
             </div>
             <div style={{ color: '#48cbe0', fontSize: 12, fontWeight: 500, marginTop: 3 }}>
-              HydraFlow Active · Account ID: {currentUser?.id.substring(0, 10) || 'Active'}
+              Daily Calibrated Target: {profile.baseTargetLiters} L / day
             </div>
           </div>
         </div>
@@ -196,7 +204,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 600 }}>Password</div>
-                  <div style={{ color: '#8aaac8', fontSize: 12 }}>Last changed recently</div>
+                  <div style={{ color: '#8aaac8', fontSize: 12 }}>Protected with SHA-256 encryption</div>
                 </div>
                 <button
                   type="button"
@@ -241,14 +249,8 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                 onChange={(e) => setCurrentPass(e.target.value)}
                 required
                 style={{
-                  width: '100%',
-                  background: '#f8faff',
-                  border: '1px solid #d1dbe8',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  outline: 'none',
-                  boxSizing: 'border-box',
+                  width: '100%', background: '#f8faff', border: '1px solid #d1dbe8',
+                  borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box',
                 }}
               />
               <input
@@ -258,14 +260,8 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                 onChange={(e) => setNewPass(e.target.value)}
                 required
                 style={{
-                  width: '100%',
-                  background: '#f8faff',
-                  border: '1px solid #d1dbe8',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  outline: 'none',
-                  boxSizing: 'border-box',
+                  width: '100%', background: '#f8faff', border: '1px solid #d1dbe8',
+                  borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box',
                 }}
               />
               <input
@@ -275,14 +271,8 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                 onChange={(e) => setConfirmNewPass(e.target.value)}
                 required
                 style={{
-                  width: '100%',
-                  background: '#f8faff',
-                  border: '1px solid #d1dbe8',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  outline: 'none',
-                  boxSizing: 'border-box',
+                  width: '100%', background: '#f8faff', border: '1px solid #d1dbe8',
+                  borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', boxSizing: 'border-box',
                 }}
               />
 
@@ -291,14 +281,8 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                   type="submit"
                   disabled={passLoading}
                   style={{
-                    flex: 1,
-                    background: '#0a6cbc',
-                    border: 'none',
-                    borderRadius: 10,
-                    padding: '10px',
-                    color: '#fff',
-                    fontSize: 13,
-                    fontWeight: 600,
+                    flex: 1, background: '#0a6cbc', border: 'none', borderRadius: 10,
+                    padding: '10px', color: '#fff', fontSize: 13, fontWeight: 600,
                     cursor: passLoading ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -308,13 +292,8 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                   type="button"
                   onClick={() => { setShowPasswordChange(false); setPassError(''); setPassSuccess(''); }}
                   style={{
-                    background: '#f1f5f9',
-                    border: 'none',
-                    borderRadius: 10,
-                    padding: '10px 14px',
-                    color: '#64748b',
-                    fontSize: 13,
-                    cursor: 'pointer',
+                    background: '#f1f5f9', border: 'none', borderRadius: 10,
+                    padding: '10px 14px', color: '#64748b', fontSize: 13, cursor: 'pointer',
                   }}
                 >
                   Cancel
@@ -324,19 +303,21 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
           )}
         </SectionCard>
 
-        {/* ── PERSONAL HEALTH CALIBRATION ── */}
+        {/* ── PERSONAL BIOMETRICS & LIFESTYLE ── */}
         <SectionCard
-          title="Physical Information"
-          subtitle="Used to calculate baseline hydration requirements"
+          title="Biometrics & Occupation"
+          subtitle="Scientifically shapes your baseline water requirement"
         >
           {!isEditingInfo ? (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 {[
-                  { label: 'Age', value: `${profile.age || 28} yrs` },
-                  { label: 'Weight', value: `${profile.weight || 72} kg` },
-                  { label: 'Height', value: `${profile.height || 178} cm` },
+                  { label: 'Weight', value: `${profile.weight || 70} kg` },
+                  { label: 'Height', value: `${profile.height || 175} cm` },
+                  { label: 'Age', value: `${profile.age || 26} yrs` },
                   { label: 'Sex', value: profile.gender || 'Male' },
+                  { label: 'Work Style', value: profile.workType === 'outdoor' ? 'Outdoor' : profile.workType === 'standing' ? 'Standing' : profile.workType === 'athlete' ? 'Athlete' : 'Desk/Study' },
+                  { label: 'Daily Workout', value: `${profile.exerciseMins || 45} mins` },
                 ].map((item) => (
                   <div key={item.label} style={{
                     background: '#f8faff',
@@ -345,7 +326,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                     border: '1px solid rgba(10,108,188,0.07)',
                   }}>
                     <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 3 }}>{item.label}</div>
-                    <div style={{ color: '#0d1b2a', fontSize: 16, fontWeight: 600 }}>{item.value}</div>
+                    <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700 }}>{item.value}</div>
                   </div>
                 ))}
               </div>
@@ -353,19 +334,12 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                 type="button"
                 onClick={() => setIsEditingInfo(true)}
                 style={{
-                  width: '100%',
-                  background: '#f8faff',
-                  border: '1px solid rgba(10,108,188,0.15)',
-                  borderRadius: 10,
-                  padding: '9px',
-                  color: '#0a6cbc',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'Inter, system-ui, sans-serif',
+                  width: '100%', background: '#f8faff', border: '1px solid rgba(10,108,188,0.15)',
+                  borderRadius: 10, padding: '9px', color: '#0a6cbc', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
                 }}
               >
-                Edit Physical Details
+                Edit Biometrics & Lifestyle
               </button>
             </div>
           ) : (
@@ -399,15 +373,16 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Biological Sex</label>
+                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Occupation</label>
                   <select
-                    value={editGender}
-                    onChange={(e) => setEditGender(e.target.value as any)}
+                    value={editWorkType}
+                    onChange={(e) => setEditWorkType(e.target.value as any)}
                     style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', background: '#fff' }}
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="desk">Desk / Student</option>
+                    <option value="standing">Standing / Active</option>
+                    <option value="outdoor">Outdoor / Field</option>
+                    <option value="athlete">Athlete / Heavy</option>
                   </select>
                 </div>
               </div>
@@ -417,7 +392,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
                   onClick={handleSavePersonalInfo}
                   style={{ flex: 1, background: '#0a6cbc', color: '#fff', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  Save Changes
+                  Save & Recalculate
                 </button>
                 <button
                   type="button"
@@ -432,7 +407,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
         </SectionCard>
 
         {/* ── ACTIVITY LEVEL ── */}
-        <SectionCard title="Activity Level" subtitle="Recalibrates your baseline fluid target">
+        <SectionCard title="Overall Activity Level" subtitle="Adjusts fluid baseline intensity">
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {activityLevels.map((level) => (
               <button
@@ -460,7 +435,7 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
         </SectionCard>
 
         {/* ── SWEAT RATE ── */}
-        <SectionCard title="Sweat Rate" subtitle="Estimates electrolyte depletion rate">
+        <SectionCard title="Sweat Rate" subtitle="Estimates electrolyte depletion speed">
           <div style={{ display: 'flex', gap: 6 }}>
             {sweatRates.map((rate) => (
               <button
@@ -493,22 +468,22 @@ export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut 
         <SectionCard title="Connections & Sensors">
           {[
             {
-              label: 'Location & Weather',
-              sub: profile.locationEnabled ? 'Active — Real-time weather adaptation' : 'Disabled — Standard baseline used',
+              label: 'Device GPS & Weather',
+              sub: profile.locationEnabled ? 'Active — Real-time climate adaptation' : 'Disabled',
               icon: '📍',
               state: profile.locationEnabled,
               toggle: () => handleToggle('locationEnabled'),
             },
             {
-              label: 'Calendar Sync',
-              sub: profile.calendarConnected ? 'Connected — Workout & commute awareness' : 'Disconnected',
+              label: 'Calendar & Schedule Sync',
+              sub: profile.calendarConnected ? 'Connected — High demand awareness' : 'Disconnected',
               icon: '📅',
               state: profile.calendarConnected,
               toggle: () => handleToggle('calendarConnected'),
             },
             {
-              label: 'Hydration Reminders',
-              sub: profile.notificationsEnabled ? 'Enabled — Context-aware notifications' : 'Muted',
+              label: 'Hydration Notifications',
+              sub: profile.notificationsEnabled ? 'Enabled — Context-aware alerts' : 'Muted',
               icon: '🔔',
               state: profile.notificationsEnabled,
               toggle: () => handleToggle('notificationsEnabled'),

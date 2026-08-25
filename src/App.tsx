@@ -92,10 +92,10 @@ export default function App() {
     setCurrentUser(user)
   }
 
-  // Handle onboarding completion
-  const handleCompleteOnboarding = (activityLevel?: string) => {
+  // Handle onboarding completion with rich biometrics & schedule
+  const handleCompleteOnboarding = (detailedProfile: any) => {
     if (currentUser) {
-      const updated = authService.completeOnboarding(currentUser.id, activityLevel)
+      const updated = authService.completeDetailedOnboarding(currentUser.id, detailedProfile)
       setCurrentUser(updated)
     }
   }

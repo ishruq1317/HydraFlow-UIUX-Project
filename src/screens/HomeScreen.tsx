@@ -101,15 +101,30 @@ export default function HomeScreen({ currentUser }: Props) {
     },
   ]
 
-  const timelineItems = hydraState.drinks.map((d) => ({
+  // User's customized active schedule blocks
+  const activeSchedule = currentUser?.profile?.schedule?.filter((s) => s.enabled) || []
+
+  // Combine real logged drinks (completed) + active upcoming schedule sessions
+  const loggedItems = hydraState.drinks.map((d) => ({
     time: d.timeLabel,
     amount: d.amountMl,
+    title: d.note,
     status: 'done' as const,
   }))
 
+  const scheduleItems = activeSchedule.map((s, idx) => ({
+    time: s.time,
+    amount: s.fluidDemandMl,
+    title: s.title,
+    status: (idx === 0 ? 'next' : 'upcoming') as 'next' | 'upcoming',
+  }))
+
+  const timelineItems = [...loggedItems, ...scheduleItems]
   if (timelineItems.length === 0) {
-    timelineItems.push({ time: '9:00 AM', amount: 250, status: 'done' as const })
+    timelineItems.push({ time: '9:00 AM', amount: 250, title: 'Morning Glass', status: 'done' as const })
   }
+
+  const nextUpcomingEvent = activeSchedule[0] || { time: '1:30 PM', title: 'Routine Hydration', fluidDemandMl: 250 }
 
   const handleQuickAdd = (amountMl: number) => {
     hydrationService.logDrink(amountMl, 'water', `Quick +${amountMl} mL`)
@@ -366,8 +381,12 @@ export default function HomeScreen({ currentUser }: Props) {
             </svg>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ color: '#0a1929', fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>Next drink recommended in 25 min</div>
-            <div style={{ color: '#5a7a9a', fontSize: 11, marginTop: 1 }}>250 mL at 1:30 PM ({weather.conditionText})</div>
+            <div style={{ color: '#0a1929', fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>
+              Next Drink: {nextUpcomingEvent.title}
+            </div>
+            <div style={{ color: '#5a7a9a', fontSize: 11, marginTop: 1 }}>
+              {nextUpcomingEvent.fluidDemandMl || 250} mL at {nextUpcomingEvent.time} ({weather.conditionText})
+            </div>
           </div>
           <button
             type="button"

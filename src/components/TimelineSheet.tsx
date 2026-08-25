@@ -1,6 +1,9 @@
+import { hydrationService } from '../services/hydration'
+
 interface TimelineItem {
   time: string
   amount: number
+  title?: string
   status: 'done' | 'next' | 'upcoming'
 }
 
@@ -16,28 +19,35 @@ const statusConfig = {
 }
 
 export default function TimelineSheet({ timeline, onClose }: Props) {
+  const completedCount = timeline.filter((t) => t.status === 'done').length
+  const totalCount = timeline.length
+
+  const handleLogItem = (item: TimelineItem) => {
+    hydrationService.logDrink(item.amount, 'water', item.title || `Scheduled ${item.time}`)
+  }
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      background: 'rgba(7,21,37,0.55)',
+      position: 'fixed', inset: 0, zIndex: 60,
+      background: 'rgba(7,21,37,0.65)',
       display: 'flex', alignItems: 'flex-end',
-      backdropFilter: 'blur(2px)',
+      backdropFilter: 'blur(3px)',
     }} onClick={onClose}>
       <div
         style={{
           width: '100%',
           background: '#fff',
-          borderRadius: '26px 26px 0 0',
+          borderRadius: '28px 28px 0 0',
           maxHeight: '85%',
           overflowY: 'auto',
-          boxShadow: '0 -8px 40px rgba(10,50,100,0.18)',
+          boxShadow: '0 -8px 40px rgba(10,50,100,0.2)',
         }}
         className="no-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 0' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#dde5ef' }} />
+          <div style={{ width: 38, height: 4, borderRadius: 2, background: '#dde5ef' }} />
         </div>
 
         <div style={{ padding: '16px 24px 36px' }}>
@@ -47,16 +57,19 @@ export default function TimelineSheet({ timeline, onClose }: Props) {
                 Hydration Timeline
               </h2>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: '#8aaac8' }}>
-                Today's 5 recommended sessions
+                Adapted to your personal schedule & workout
               </p>
             </div>
-            <button onClick={onClose} style={{
-              background: '#f2f5f9', border: 'none', borderRadius: 10,
-              width: 36, height: 36, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              minWidth: 36,
-            }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5a7a9a" strokeWidth="2.5" strokeLinecap="round">
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: '#f2f5f9', border: 'none', borderRadius: 10,
+                width: 36, height: 36, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5a7a9a" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
@@ -65,20 +78,28 @@ export default function TimelineSheet({ timeline, onClose }: Props) {
           {/* Progress summary */}
           <div style={{
             background: '#f8faff',
-            borderRadius: 14,
-            padding: '12px 16px',
+            borderRadius: 16,
+            padding: '14px 16px',
             border: '1px solid rgba(10,108,188,0.1)',
-            marginBottom: 22,
+            marginBottom: 20,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
             <div>
-              <div style={{ color: '#8aaac8', fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>Progress</div>
-              <div style={{ color: '#0a6cbc', fontSize: 18, fontWeight: 700, marginTop: 2 }}>2 of 5 done</div>
+              <div style={{ color: '#8aaac8', fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>Daily Progress</div>
+              <div style={{ color: '#0a6cbc', fontSize: 18, fontWeight: 800, marginTop: 2 }}>
+                {completedCount} of {totalCount} sessions done
+              </div>
             </div>
-            <div style={{ width: 80, height: 6, background: '#e4ebf4', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ width: '40%', height: '100%', background: 'linear-gradient(90deg, #0a6cbc, #00c8e8)', borderRadius: 3 }} />
+            <div style={{ width: 80, height: 8, background: '#e4ebf4', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{
+                width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #0a6cbc, #00c8e8)',
+                borderRadius: 4,
+                transition: 'width 0.4s ease',
+              }} />
             </div>
           </div>
 
@@ -87,7 +108,7 @@ export default function TimelineSheet({ timeline, onClose }: Props) {
             {/* Vertical connector */}
             <div style={{
               position: 'absolute', left: 19, top: 20, bottom: 20,
-              width: 1.5, background: '#edf1f7', borderRadius: 1,
+              width: 2, background: '#edf1f7', borderRadius: 1,
             }} />
 
             {timeline.map((item, i) => {
@@ -95,7 +116,7 @@ export default function TimelineSheet({ timeline, onClose }: Props) {
               return (
                 <div key={i} style={{
                   display: 'flex', gap: 14, alignItems: 'flex-start',
-                  marginBottom: i < timeline.length - 1 ? 18 : 0,
+                  marginBottom: i < timeline.length - 1 ? 16 : 0,
                 }}>
                   {/* Status dot */}
                   <div style={{
@@ -105,42 +126,49 @@ export default function TimelineSheet({ timeline, onClose }: Props) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0, position: 'relative', zIndex: 1,
                   }}>
-                    <span style={{ color: cfg.color, fontSize: 13, fontWeight: 700 }}>{cfg.dot}</span>
+                    <span style={{ color: cfg.color, fontSize: 13, fontWeight: 800 }}>{cfg.dot}</span>
                   </div>
 
-                  {/* Content */}
+                  {/* Content card */}
                   <div style={{
                     flex: 1,
                     background: item.status === 'next' ? 'linear-gradient(135deg, #eff7ff, #e8f3fb)' : '#f8faff',
-                    borderRadius: 14,
+                    borderRadius: 16,
                     padding: '12px 14px',
                     border: item.status === 'next'
-                      ? '1.5px solid rgba(10,108,188,0.2)'
-                      : '1px solid rgba(10,108,188,0.07)',
+                      ? '1.5px solid rgba(10,108,188,0.25)'
+                      : '1px solid rgba(10,108,188,0.08)',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ color: '#8aaac8', fontSize: 11, marginBottom: 3 }}>{item.time}</div>
-                        <div style={{ color: '#0d1b2a', fontSize: 17, fontWeight: 700 }}>{item.amount} mL</div>
+                        <div style={{ color: '#8aaac8', fontSize: 11, marginBottom: 2 }}>{item.time}</div>
+                        <div style={{ color: '#0d1b2a', fontSize: 16, fontWeight: 700 }}>
+                          {item.amount} mL <span style={{ fontSize: 12, fontWeight: 500, color: '#5a7a9a' }}>{item.title ? `· ${item.title}` : ''}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                         <div style={{
                           background: cfg.bg,
                           color: cfg.color,
                           borderRadius: 8, padding: '3px 10px',
-                          fontSize: 11, fontWeight: 600,
+                          fontSize: 11, fontWeight: 700,
                         }}>
                           {cfg.label}
                         </div>
                         {item.status === 'next' && (
-                          <button style={{
-                            background: '#0a6cbc',
-                            border: 'none', borderRadius: 8,
-                            padding: '6px 14px',
-                            color: '#fff', fontSize: 12, fontWeight: 600,
-                            cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
-                            minHeight: 30,
-                          }}>
+                          <button
+                            type="button"
+                            onClick={() => handleLogItem(item)}
+                            style={{
+                              background: '#0a6cbc',
+                              border: 'none', borderRadius: 8,
+                              padding: '6px 14px',
+                              color: '#fff', fontSize: 12, fontWeight: 700,
+                              cursor: 'pointer', fontFamily: 'Inter, system-ui, sans-serif',
+                              minHeight: 30,
+                              boxShadow: '0 2px 6px rgba(10,108,188,0.25)',
+                            }}
+                          >
                             Log it
                           </button>
                         )}
