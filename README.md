@@ -10,14 +10,13 @@
 
 ---
 
-## 🌐 Live Web Application & Demonstration
+## 🌐 Live Web Application & Interactive Prototype
 
 | Resource | Link |
 | :--- | :--- |
-| 🚀 **Live 24/7 Web App (Vercel)** | [https://hydra-flow-uiux-project.vercel.app](https://hydra-flow-uiux-project.vercel.app) |
-| 📱 **GitHub Pages Backup** | [https://ishruq1317.github.io/HydraFlow-UIUX-Project/](https://ishruq1317.github.io/HydraFlow-UIUX-Project/) |
+| 🎨 **Interactive Live Prototype (Vercel 24/7)** | [https://hydra-flow-uiux-project.vercel.app](https://hydra-flow-uiux-project.vercel.app) |
+| 📱 **GitHub Pages Mirror** | [https://ishruq1317.github.io/HydraFlow-UIUX-Project/](https://ishruq1317.github.io/HydraFlow-UIUX-Project/) |
 | 🎥 **Demo Video** | [Watch Demo Video (Google Drive)](https://drive.google.com/file/d/1-eQ4JXZpHr4ltcvJ3L1T2TFHFHIazq5S/view?usp=drive_link) |
-| 🎨 **Figma Prototype** | [View Figma Project](https://distort-salt-54882236.figma.site/) |
 
 ---
 
