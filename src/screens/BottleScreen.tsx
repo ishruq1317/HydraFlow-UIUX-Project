@@ -1,20 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { hydrationService, type HydrationState } from '../services/hydration'
 
 export default function BottleScreen() {
+  const [hydraState, setHydraState] = useState<HydrationState>(() => hydrationService.getState())
   const [syncing, setSyncing] = useState(false)
-  const [lastSync, setLastSync] = useState('2 min ago')
+  const [justDrunk, setJustDrunk] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = hydrationService.subscribe((updated) => {
+      setHydraState(updated)
+    })
+    return unsubscribe
+  }, [])
+
+  const bottle = hydraState.bottle
+  const level = bottle.levelMl
+  const capacity = bottle.capacityMl
+  const levelPct = Math.min(Math.max(level / capacity, 0), 1)
 
   const handleSync = () => {
     setSyncing(true)
     setTimeout(() => {
+      hydrationService.syncBottle()
       setSyncing(false)
-      setLastSync('just now')
-    }, 2000)
+    }, 1200)
   }
 
-  const level = 420
-  const capacity = 750
-  const levelPct = level / capacity
+  const handleDrinkSip = () => {
+    if (level <= 0) return
+    hydrationService.drinkFromBottle(200)
+    setJustDrunk(true)
+    setTimeout(() => setJustDrunk(false), 800)
+  }
+
+  const handleRefill = () => {
+    hydrationService.refillBottle(750)
+  }
 
   return (
     <div style={{ background: '#f2f5f9', minHeight: '100%', paddingBottom: 28 }}>
@@ -31,10 +52,14 @@ export default function BottleScreen() {
           background: 'radial-gradient(circle, rgba(0,180,216,0.14) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
-        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 6px', letterSpacing: -0.3 }}>Smart Bottle</h1>
+        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 6px', letterSpacing: -0.3 }}>
+          Smart Bottle
+        </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80' }} />
-          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>Connected — HydraFlow Pro</span>
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+            Connected — HydraFlow Pro (Bluetooth)
+          </span>
         </div>
       </div>
 
@@ -44,41 +69,41 @@ export default function BottleScreen() {
         <div style={{
           background: '#fff',
           borderRadius: 24,
-          padding: '28px 24px 24px',
+          padding: '24px 24px 20px',
           marginBottom: 14,
           boxShadow: '0 4px 24px rgba(10,50,100,0.1)',
           border: '1px solid rgba(10,108,188,0.07)',
         }}>
           {/* Bottle centered hero */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
-            <BottleSvg levelPct={levelPct} level={level} capacity={capacity} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+            <BottleSvg levelPct={levelPct} level={level} capacity={capacity} justDrunk={justDrunk} />
           </div>
 
           {/* Stats grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
-              { label: 'Current level', value: '420 mL', sub: '56% full', color: '#0a6cbc', icon: '💧' },
-              { label: 'Temperature', value: '18°C', sub: 'optimal', color: '#0891b2', icon: '🌡' },
-              { label: 'Battery', value: '82%', sub: 'good', color: '#22c55e', icon: '⚡' },
+              { label: 'Current level', value: `${level} mL`, sub: `${Math.round(levelPct * 100)}% full`, color: '#0a6cbc', icon: '💧' },
+              { label: 'Temperature', value: `${bottle.temperatureC}°C`, sub: 'optimal', color: '#0891b2', icon: '🌡' },
+              { label: 'Battery', value: `${bottle.batteryPct}%`, sub: 'healthy', color: '#22c55e', icon: '⚡' },
             ].map((stat) => (
               <div key={stat.label} style={{
                 background: '#f8faff',
                 borderRadius: 14,
-                padding: '12px 10px',
+                padding: '12px 8px',
                 border: '1px solid rgba(10,108,188,0.07)',
                 textAlign: 'center',
               }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{stat.icon}</div>
-                <div style={{ color: stat.color, fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{stat.value}</div>
-                <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 3 }}>{stat.label}</div>
+                <div style={{ fontSize: 18, marginBottom: 3 }}>{stat.icon}</div>
+                <div style={{ color: stat.color, fontSize: 14, fontWeight: 700, lineHeight: 1.1 }}>{stat.value}</div>
+                <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 2 }}>{stat.label}</div>
               </div>
             ))}
           </div>
 
           {/* Level progress bar */}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ color: '#5a7a9a', fontSize: 12 }}>Bottle level</span>
+              <span style={{ color: '#5a7a9a', fontSize: 12 }}>Water Capacity</span>
               <span style={{ color: '#0a6cbc', fontSize: 12, fontWeight: 600 }}>{level} of {capacity} mL</span>
             </div>
             <div style={{ height: 8, background: '#e4ebf4', borderRadius: 4, overflow: 'hidden' }}>
@@ -87,12 +112,12 @@ export default function BottleScreen() {
                 width: `${levelPct * 100}%`,
                 background: 'linear-gradient(90deg, #0a6cbc, #00c8e8)',
                 borderRadius: 4,
-                transition: 'width 0.5s',
+                transition: 'width 0.5s ease',
               }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ color: '#94a3b8', fontSize: 10 }}>Empty</span>
-              <span style={{ color: '#94a3b8', fontSize: 10 }}>Full (750 mL)</span>
+              <span style={{ color: '#94a3b8', fontSize: 10 }}>Full ({capacity} mL)</span>
             </div>
           </div>
         </div>
@@ -120,9 +145,9 @@ export default function BottleScreen() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 500 }}>
-              {syncing ? 'Syncing…' : `Last sync: ${lastSync}`}
+              {syncing ? 'Syncing sensor logs…' : `Last synced: ${bottle.lastSync}`}
             </div>
-            <div style={{ color: '#8aaac8', fontSize: 12 }}>Auto-sync every 5 minutes</div>
+            <div style={{ color: '#8aaac8', fontSize: 12 }}>Real-time sensor telemetry</div>
           </div>
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
@@ -131,59 +156,89 @@ export default function BottleScreen() {
           }} />
         </div>
 
-        {/* Action buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+        {/* Interactive Actions */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          {/* Drink from bottle button */}
           <button
-            onClick={handleSync}
-            disabled={syncing}
+            type="button"
+            onClick={handleDrinkSip}
+            disabled={level <= 0}
             style={{
-              background: syncing ? '#94a3b8' : 'linear-gradient(135deg, #0a6cbc, #00c8e8)',
+              background: level <= 0 ? '#94a3b8' : 'linear-gradient(135deg, #0a6cbc, #00b4d8)',
               border: 'none',
               borderRadius: 16,
-              padding: '16px',
+              padding: '14px',
               color: '#fff',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: syncing ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: level <= 0 ? 'not-allowed' : 'pointer',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 10,
-              fontFamily: 'Inter, system-ui, sans-serif',
-              minHeight: 54,
-              transition: 'background 0.2s',
-              boxShadow: syncing ? 'none' : '0 4px 14px rgba(10,108,188,0.3)',
+              gap: 4,
+              boxShadow: level <= 0 ? 'none' : '0 4px 14px rgba(10,108,188,0.3)',
+              transition: 'all 0.2s',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0115.13-2.09L23 10M1 14l4.36 3.09A9 9 0 0020.49 15" />
-            </svg>
-            {syncing ? 'Syncing…' : 'Sync Bottle'}
+            <span style={{ fontSize: 18 }}>🥤</span>
+            <span>Take Sip (-200 mL)</span>
           </button>
 
-          <button style={{
-            background: '#fff',
-            border: '1.5px solid rgba(10,108,188,0.18)',
-            borderRadius: 16,
-            padding: '16px',
+          {/* Refill bottle button */}
+          <button
+            type="button"
+            onClick={handleRefill}
+            style={{
+              background: '#fff',
+              border: '1.5px solid rgba(10,108,188,0.2)',
+              borderRadius: 16,
+              padding: '14px',
+              color: '#0a6cbc',
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              boxShadow: '0 2px 8px rgba(10,50,100,0.04)',
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{ fontSize: 18 }}>🚰</span>
+            <span>Refill Bottle (750 mL)</span>
+          </button>
+        </div>
+
+        {/* Sync Bottle full width button */}
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncing}
+          style={{
+            width: '100%',
+            background: '#f0f6ff',
+            border: '1px solid rgba(10,108,188,0.15)',
+            borderRadius: 14,
+            padding: '12px',
             color: '#0a6cbc',
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: syncing ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 10,
-            fontFamily: 'Inter, system-ui, sans-serif',
-            minHeight: 54,
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.07 4.93a10 10 0 000 14.14M4.93 4.93a10 10 0 000 14.14" />
-            </svg>
-            Bottle Settings
-          </button>
-        </div>
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0115.13-2.09L23 10M1 14l4.36 3.09A9 9 0 0020.49 15" />
+          </svg>
+          <span>{syncing ? 'Syncing sensor logs...' : 'Sync Bottle Bluetooth Logs'}</span>
+        </button>
 
         {/* Drink history */}
         <div style={{
@@ -193,48 +248,61 @@ export default function BottleScreen() {
           border: '1px solid rgba(10,108,188,0.07)',
           boxShadow: '0 1px 8px rgba(10,50,100,0.05)',
         }}>
-          <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Drink History Today</div>
-          {[
-            { time: '7:12 AM', amount: 220, note: 'Morning drink', fromBottom: true },
-            { time: '9:03 AM', amount: 180, note: 'Pre-lecture', fromBottom: false },
-            { time: '11:22 AM', amount: 195, note: 'Mid-morning', fromBottom: false },
-            { time: '12:58 PM', amount: 260, note: 'Pre-gym', fromBottom: false },
-          ].map((drink, i, arr) => (
-            <div key={i} style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              paddingBottom: i < arr.length - 1 ? 13 : 0,
-              marginBottom: i < arr.length - 1 ? 13 : 0,
-              borderBottom: i < arr.length - 1 ? '1px solid #f2f5f9' : 'none',
-            }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: 'rgba(0,180,216,0.08)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#00b4d8" strokeWidth="2" strokeLinecap="round">
-                  <path d="M8 2h8M9 2v2.5a4 4 0 00-4 4v11a2 2 0 002 2h10a2 2 0 002-2v-11a4 4 0 00-4-4V2" />
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 600 }}>{drink.amount} mL</div>
-                <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 1 }}>{drink.note}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ color: '#5a7a9a', fontSize: 12 }}>{drink.time}</div>
-                <div style={{ color: '#22c55e', fontSize: 10, marginTop: 1 }}>✓ logged</div>
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700 }}>Drink History Today</div>
+            <div style={{ color: '#0a6cbc', fontSize: 12, fontWeight: 600 }}>{hydraState.drinks.length} logged</div>
+          </div>
+
+          {hydraState.drinks.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '16px', color: '#94a3b8', fontSize: 13 }}>
+              No drinks logged yet today. Take a sip or log a drink!
             </div>
-          ))}
+          ) : (
+            hydraState.drinks.slice(0, 5).map((drink, i, arr) => (
+              <div key={drink.id || i} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                paddingBottom: i < arr.length - 1 ? 12 : 0,
+                marginBottom: i < arr.length - 1 ? 12 : 0,
+                borderBottom: i < arr.length - 1 ? '1px solid #f2f5f9' : 'none',
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: drink.type === 'bottle' ? 'rgba(10,108,188,0.1)' : 'rgba(0,180,216,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 16 }}>{drink.type === 'bottle' ? '🍾' : drink.type === 'electrolyte' ? '⚡' : '💧'}</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 600 }}>{drink.amountMl} mL</div>
+                  <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 1 }}>{drink.note}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#5a7a9a', fontSize: 12 }}>{drink.timeLabel}</div>
+                  <div style={{ color: '#22c55e', fontSize: 10, marginTop: 1 }}>✓ verified</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function BottleSvg({ levelPct, level, capacity }: { levelPct: number; level: number; capacity: number }) {
+function BottleSvg({
+  levelPct,
+  level,
+  capacity,
+  justDrunk,
+}: {
+  levelPct: number
+  level: number
+  capacity: number
+  justDrunk: boolean
+}) {
   const W = 90
   const H = 220
   const capH = 22
@@ -267,7 +335,6 @@ function BottleSvg({ levelPct, level, capacity }: { levelPct: number; level: num
           <clipPath id="bodyClip">
             <rect x="5" y={bodyTop} width={W - 10} height={bodyH} rx={rx} />
           </clipPath>
-          {/* Glow filter */}
           <filter id="waterGlow">
             <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -298,14 +365,16 @@ function BottleSvg({ levelPct, level, capacity }: { levelPct: number; level: num
           fill="url(#waterFill)"
           clipPath="url(#bodyClip)"
           filter="url(#waterGlow)"
+          style={{ transition: 'all 0.5s ease' }}
         />
 
         {/* Wave surface */}
-        {waterH > 14 && (
+        {waterH > 10 && (
           <path
-            d={`M5 ${waterY} Q${W / 4} ${waterY - 6} ${W / 2} ${waterY} Q${(W * 3) / 4} ${waterY + 6} ${W - 5} ${waterY}`}
-            fill="rgba(100,220,240,0.35)"
+            d={`M5 ${waterY} Q${W / 4} ${waterY - (justDrunk ? 10 : 6)} ${W / 2} ${waterY} Q${(W * 3) / 4} ${waterY + (justDrunk ? 10 : 6)} ${W - 5} ${waterY}`}
+            fill="rgba(100,220,240,0.4)"
             clipPath="url(#bodyClip)"
+            style={{ transition: 'd 0.3s ease' }}
           />
         )}
 
@@ -336,10 +405,14 @@ function BottleSvg({ levelPct, level, capacity }: { levelPct: number; level: num
 
       {/* Level label below */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ color: '#0a6cbc', fontSize: 32, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{level}</span>
+        <span style={{ color: '#0a6cbc', fontSize: 32, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>
+          {level}
+        </span>
         <span style={{ color: '#5a7a9a', fontSize: 16, fontWeight: 500 }}>mL</span>
       </div>
-      <div style={{ color: '#8aaac8', fontSize: 12 }}>{Math.round(levelPct * 100)}% of {capacity} mL capacity</div>
+      <div style={{ color: '#8aaac8', fontSize: 12 }}>
+        {Math.round(levelPct * 100)}% of {capacity} mL capacity
+      </div>
     </div>
   )
 }

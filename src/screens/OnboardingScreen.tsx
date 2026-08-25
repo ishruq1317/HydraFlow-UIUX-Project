@@ -1,7 +1,8 @@
 import { useState } from 'react'
 
 interface Props {
-  onComplete: () => void
+  onComplete: (activityLevel?: string) => void
+  formattedTime?: string
 }
 
 const steps = [
@@ -47,20 +48,25 @@ const steps = [
 
 const activityLevels = ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active']
 
-export default function OnboardingScreen({ onComplete }: Props) {
+export default function OnboardingScreen({ onComplete, formattedTime }: Props) {
   const [step, setStep] = useState(0)
   const [activity, setActivity] = useState('Moderate')
+
+  // Fallback local time if not passed
+  const [localTime] = useState(() => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+  
+  const displayTime = formattedTime || localTime
 
   const current = steps[step]
   const progress = (step + 1) / steps.length
 
   const next = () => {
     if (step < steps.length - 1) setStep(step + 1)
-    else onComplete()
+    else onComplete(activity)
   }
 
   return (
-    <div style={{ width: 390, height: 844, background: '#0a1929', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       {/* Background gradient */}
       <div style={{
         position: 'absolute', inset: 0,
@@ -69,10 +75,29 @@ export default function OnboardingScreen({ onComplete }: Props) {
       }} />
 
       {/* Status bar */}
-      <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, position: 'relative', zIndex: 2 }}>
-        <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>9:41</span>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10 }}>●●●</span>
+      <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px', flexShrink: 0, position: 'relative', zIndex: 2 }}>
+        <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, letterSpacing: 0.1 }}>{displayTime}</span>
+        <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+          {/* Signal */}
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="rgba(255,255,255,0.85)">
+            <rect x="0" y="5" width="3" height="7" rx="1" />
+            <rect x="4.5" y="3" width="3" height="9" rx="1" />
+            <rect x="9" y="1" width="3" height="11" rx="1" />
+            <rect x="13.5" y="0" width="3" height="12" rx="1" />
+          </svg>
+
+          {/* WiFi */}
+          <svg width="16" height="12" viewBox="0 0 24 16" fill="rgba(255,255,255,0.85)">
+            <path d="M1 5C5.2 1.4 9.4 0 12 0s6.8 1.4 11 5L12 16z" />
+          </svg>
+
+          {/* Battery */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: 23, height: 12, border: '1.5px solid rgba(255,255,255,0.5)', borderRadius: 3.5, padding: '1.5px 2px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: '78%', height: '100%', background: '#4ade80', borderRadius: 2 }} />
+            </div>
+            <div style={{ width: 2, height: 5, background: 'rgba(255,255,255,0.4)', borderRadius: '0 1px 1px 0', marginLeft: 1 }} />
+          </div>
         </div>
       </div>
 

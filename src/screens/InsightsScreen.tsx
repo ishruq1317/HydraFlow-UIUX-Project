@@ -1,12 +1,44 @@
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const weekValues = [2.1, 2.4, 2.3, 2.9, 2.5, 1.8, 1.4]
-const weekTargets = [2.3, 2.3, 2.3, 2.8, 2.5, 2.0, 2.8]
+import { useEffect, useState } from 'react'
+import { hydrationService, type HydrationState } from '../services/hydration'
+import { weatherService, type LiveWeatherData } from '../services/weather'
+
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today']
+const pastWeekValues = [2.2, 2.4, 2.3, 2.9, 2.5, 2.1] // Mon - Sat past days
+const pastWeekTargets = [2.4, 2.4, 2.4, 2.8, 2.5, 2.2]
 
 export default function InsightsScreen() {
-  const maxVal = 3.2
+  const [hydraState, setHydraState] = useState<HydrationState>(() => hydrationService.getState())
+  const [weather, setWeather] = useState<LiveWeatherData>(() => weatherService.getCurrentWeather())
+
+  useEffect(() => {
+    const unsubH = hydrationService.subscribe((h) => setHydraState(h))
+    const unsubW = weatherService.subscribe((w) => setWeather(w))
+    return () => {
+      unsubH()
+      unsubW()
+    }
+  }, [])
+
+  const todayConsumed = hydraState.consumedLiters
+  const todayTarget = hydraState.targetLiters
+
+  const weekValues = [...pastWeekValues, todayConsumed]
+  const weekTargets = [...pastWeekTargets, todayTarget]
+
+  const totalConsumedWeek = weekValues.reduce((a, b) => a + b, 0)
+  const avgDailyIntake = Math.round((totalConsumedWeek / 7) * 10) / 10
+
+  const daysGoalMet = weekValues.filter((v, i) => v >= weekTargets[i]).length
+  const goalAchievementPct = Math.round((daysGoalMet / 7) * 100)
+
+  const maxVal = Math.max(...weekValues, ...weekTargets, 3.5)
   const chartH = 110
   const totalW = 310
   const barW = (totalW / 7) * 0.55
+
+  // Date range formatted
+  const now = new Date()
+  const weekRangeStr = `${new Date(now.getTime() - 6 * 86400000).toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
 
   return (
     <div style={{ background: '#f2f5f9', minHeight: '100%', paddingBottom: 28 }}>
@@ -17,9 +49,11 @@ export default function InsightsScreen() {
         padding: '18px 24px 24px',
       }}>
         <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 3px', letterSpacing: -0.3 }}>
-          Weekly Insights
+          Weekly Health Insights
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Aug 4 – Aug 10, 2026</p>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: 0 }}>
+          {weekRangeStr} · 📍 {weather.city}
+        </p>
       </div>
 
       <div style={{ padding: '16px 20px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -27,10 +61,10 @@ export default function InsightsScreen() {
         {/* Key stats 2×2 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
-            { label: 'Avg daily intake', value: '2.3 L', sub: '+0.2 L vs last week', trend: true, color: '#22c55e' },
-            { label: 'Goal achievement', value: '86%', sub: '6 of 7 days hit target', trend: true, color: '#0a6cbc' },
-            { label: 'Best day', value: 'Thursday', sub: '2.9 L — personal best', trend: false, color: '#7c3aed' },
-            { label: 'Weather impact', value: '+18%', sub: 'avg demand increase', trend: false, color: '#e8510a' },
+            { label: 'Avg daily intake', value: `${avgDailyIntake} L`, sub: '+0.3 L vs baseline', trend: true, color: '#22c55e' },
+            { label: 'Goal achievement', value: `${goalAchievementPct}%`, sub: `${daysGoalMet} of 7 days hit goal`, trend: true, color: '#0a6cbc' },
+            { label: 'Top Intake Day', value: 'Thursday', sub: '2.9 L — Personal Best', trend: false, color: '#7c3aed' },
+            { label: 'Weather Impact', value: `+${weather.totalDemandIncreasePct}%`, sub: `Driven by ${weather.city} heat`, trend: false, color: '#e8510a' },
           ].map((stat) => (
             <div key={stat.label} style={{
               background: '#fff',
@@ -117,8 +151,9 @@ export default function InsightsScreen() {
                     y={chartH - barH}
                     width={barW}
                     height={barH}
-                    fill={isToday ? 'url(#insightBarGrad)' : (metGoal ? 'rgba(10,108,188,0.55)' : '#c4cfd8')}
+                    fill={isToday ? 'url(#insightBarGrad)' : (metGoal ? 'rgba(10,108,188,0.6)' : '#c4cfd8')}
                     rx="4"
+                    style={{ transition: 'all 0.5s ease' }}
                   />
                   {/* Target tick line */}
                   <line
@@ -143,7 +178,8 @@ export default function InsightsScreen() {
                   </text>
                   {/* Value label */}
                   <text x={colX} y={chartH + 26} textAnchor="middle"
-                    fill={isToday ? '#0d1b2a' : '#c4cfd8'} fontSize="9"
+                    fill={isToday ? '#0d1b2a' : '#94a3b8'} fontSize="9"
+                    fontWeight={isToday ? '700' : '400'}
                     fontFamily="Inter, system-ui, sans-serif">
                     {val}L
                   </text>
@@ -153,7 +189,7 @@ export default function InsightsScreen() {
           </svg>
         </div>
 
-        {/* Consistency heatmap proxy — 7 days dots */}
+        {/* Goal Consistency Heatmap */}
         <div style={{
           background: '#fff',
           borderRadius: 20,
@@ -161,8 +197,8 @@ export default function InsightsScreen() {
           border: '1px solid rgba(10,108,188,0.08)',
           boxShadow: '0 1px 8px rgba(10,50,100,0.05)',
         }}>
-          <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Goal Consistency</div>
-          <div style={{ color: '#8aaac8', fontSize: 12, marginBottom: 14 }}>Days you hit your hydration target</div>
+          <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Goal Consistency Matrix</div>
+          <div style={{ color: '#8aaac8', fontSize: 12, marginBottom: 14 }}>Daily target completion history</div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             {weekDays.map((day, i) => {
               const val = weekValues[i]
@@ -178,7 +214,7 @@ export default function InsightsScreen() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 14,
                   }}>
-                    <span style={{ color: met ? '#22c55e' : '#e2eaf3', fontSize: 13 }}>
+                    <span style={{ color: met ? '#22c55e' : '#94a3b8', fontSize: 13, fontWeight: 700 }}>
                       {met ? '✓' : isToday ? '…' : '–'}
                     </span>
                   </div>
@@ -187,59 +223,6 @@ export default function InsightsScreen() {
               )
             })}
           </div>
-        </div>
-
-        {/* Patterns */}
-        <div style={{
-          background: '#fff',
-          borderRadius: 20,
-          padding: '18px',
-          border: '1px solid rgba(10,108,188,0.08)',
-          boxShadow: '0 1px 8px rgba(10,50,100,0.05)',
-        }}>
-          <div style={{ color: '#0d1b2a', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Patterns & Insights</div>
-          {[
-            {
-              label: 'Most challenging period',
-              value: '2–5 PM',
-              detail: 'You often miss sessions in the afternoon. HydraFlow will send a stronger nudge.',
-              icon: '⏰', color: '#e8510a', bg: '#fff3ee',
-            },
-            {
-              label: 'Strongest habit',
-              value: 'Morning',
-              detail: "You consistently hit your morning goals before 10 AM — great start.",
-              icon: '☀️', color: '#22c55e', bg: '#f0fdf4',
-            },
-            {
-              label: 'Weather sensitivity',
-              value: 'High',
-              detail: 'Your intake increases 22% on hot days. Forecasts are adjusting for this.',
-              icon: '🌡', color: '#0891b2', bg: '#ecfeff',
-            },
-          ].map((insight, i, arr) => (
-            <div key={insight.label} style={{
-              display: 'flex',
-              gap: 12,
-              paddingBottom: i < arr.length - 1 ? 14 : 0,
-              marginBottom: i < arr.length - 1 ? 14 : 0,
-              borderBottom: i < arr.length - 1 ? '1px solid #f2f5f9' : 'none',
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: insight.bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, flexShrink: 0,
-              }}>
-                {insight.icon}
-              </div>
-              <div>
-                <div style={{ color: '#8aaac8', fontSize: 11, marginBottom: 2 }}>{insight.label}</div>
-                <div style={{ color: insight.color, fontSize: 15, fontWeight: 700, marginBottom: 3 }}>{insight.value}</div>
-                <div style={{ color: '#5a7a9a', fontSize: 12, lineHeight: 1.45 }}>{insight.detail}</div>
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* Streak card */}
@@ -264,8 +247,12 @@ export default function InsightsScreen() {
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>
               Current Streak
             </div>
-            <div style={{ color: '#fff', fontSize: 26, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>6 days</div>
-            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 3 }}>Personal best: 12 days</div>
+            <div style={{ color: '#fff', fontSize: 26, fontWeight: 800, lineHeight: 1, letterSpacing: -0.5 }}>
+              {daysGoalMet} Days
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 3 }}>
+              {daysGoalMet >= 5 ? 'Exceptional consistency! Keep it up.' : 'Log your drinks daily to maintain streak.'}
+            </div>
           </div>
         </div>
       </div>

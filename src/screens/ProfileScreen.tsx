@@ -1,18 +1,153 @@
 import { useState } from 'react'
+import { authService, type UserAccount, type UserProfile } from '../services/auth'
 
-const activityLevels = ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active']
-const sweatRates = ['Low', 'Moderate', 'High', 'Very High']
+const activityLevels: UserProfile['activityLevel'][] = ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active']
+const sweatRates: UserProfile['sweatRate'][] = ['Low', 'Moderate', 'High', 'Very High']
 
-export default function ProfileScreen() {
-  const [activity, setActivity] = useState('Active')
-  const [sweatRate, setSweatRate] = useState('Moderate')
-  const [locationEnabled, setLocationEnabled] = useState(true)
-  const [calendarConnected, setCalendarConnected] = useState(true)
-  const [notifications, setNotifications] = useState(true)
+interface Props {
+  currentUser?: UserAccount | null
+  onProfileUpdate?: (user: UserAccount) => void
+  onSignOut?: () => void
+}
+
+export default function ProfileScreen({ currentUser, onProfileUpdate, onSignOut }: Props) {
+  // User profile local state
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    return currentUser?.profile || {
+      age: 28,
+      weight: 72,
+      height: 178,
+      gender: 'Male',
+      activityLevel: 'Moderate',
+      sweatRate: 'Moderate',
+      baseTargetLiters: 2.8,
+      locationEnabled: true,
+      calendarConnected: true,
+      notificationsEnabled: true,
+    }
+  })
+
+  const [isEditingInfo, setIsEditingInfo] = useState(false)
+  const [editAge, setEditAge] = useState(String(profile.age || 28))
+  const [editWeight, setEditWeight] = useState(String(profile.weight || 72))
+  const [editHeight, setEditHeight] = useState(String(profile.height || 178))
+  const [editGender, setEditGender] = useState<'Male' | 'Female' | 'Other'>(profile.gender || 'Male')
+
+  // Password change state
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [currentPass, setCurrentPass] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [confirmNewPass, setConfirmNewPass] = useState('')
+  const [passError, setPassError] = useState('')
+  const [passSuccess, setPassSuccess] = useState('')
+  const [passLoading, setPassLoading] = useState(false)
+
+  // Save personal info updates
+  const handleSavePersonalInfo = () => {
+    const w = parseFloat(editWeight) || 72
+    const h = parseFloat(editHeight) || 178
+    const a = parseInt(editAge, 10) || 28
+
+    const updates: Partial<UserProfile> = {
+      weight: w,
+      height: h,
+      age: a,
+      gender: editGender,
+    }
+
+    setProfile((prev) => ({ ...prev, ...updates }))
+    setIsEditingInfo(false)
+
+    if (currentUser) {
+      const updated = authService.updateProfile(currentUser.id, updates)
+      if (updated && onProfileUpdate) {
+        onProfileUpdate(updated)
+      }
+    }
+  }
+
+  // Update activity level
+  const handleActivityChange = (level: UserProfile['activityLevel']) => {
+    setProfile((prev) => ({ ...prev, activityLevel: level }))
+    if (currentUser) {
+      const updated = authService.updateProfile(currentUser.id, { activityLevel: level })
+      if (updated && onProfileUpdate) {
+        onProfileUpdate(updated)
+      }
+    }
+  }
+
+  // Update sweat rate
+  const handleSweatRateChange = (rate: UserProfile['sweatRate']) => {
+    setProfile((prev) => ({ ...prev, sweatRate: rate }))
+    if (currentUser) {
+      const updated = authService.updateProfile(currentUser.id, { sweatRate: rate })
+      if (updated && onProfileUpdate) {
+        onProfileUpdate(updated)
+      }
+    }
+  }
+
+  // Toggle settings
+  const handleToggle = (key: keyof UserProfile) => {
+    const updatedVal = !profile[key]
+    setProfile((prev) => ({ ...prev, [key]: updatedVal }))
+    if (currentUser) {
+      const updated = authService.updateProfile(currentUser.id, { [key]: updatedVal })
+      if (updated && onProfileUpdate) {
+        onProfileUpdate(updated)
+      }
+    }
+  }
+
+  // Change Password submit
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPassError('')
+    setPassSuccess('')
+
+    if (newPass !== confirmNewPass) {
+      setPassError('New passwords do not match.')
+      return
+    }
+
+    if (!currentUser) {
+      setPassError('No active user found.')
+      return
+    }
+
+    setPassLoading(true)
+    try {
+      const res = await authService.updatePassword(currentUser.id, currentPass, newPass)
+      if (res.success) {
+        setPassSuccess('Password changed successfully!')
+        setCurrentPass('')
+        setNewPass('')
+        setConfirmNewPass('')
+        setTimeout(() => setShowPasswordChange(false), 1500)
+      } else {
+        setPassError(res.error || 'Failed to update password.')
+      }
+    } catch {
+      setPassError('An error occurred while updating password.')
+    } finally {
+      setPassLoading(false)
+    }
+  }
+
+  // Initials
+  const fullName = currentUser?.fullName || 'Jamie Mitchell'
+  const email = currentUser?.email || 'jamie@example.com'
+  const username = currentUser?.username || 'jamie'
+  const initials = fullName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2) || 'JM'
 
   return (
     <div style={{ background: '#f2f5f9', minHeight: '100%', paddingBottom: 32 }}>
-
       {/* Header */}
       <div style={{
         background: 'linear-gradient(175deg, #071525 0%, #0b2d4e 100%)',
@@ -25,7 +160,9 @@ export default function ProfileScreen() {
           background: 'radial-gradient(circle, rgba(0,180,216,0.12) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
-        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 18px', letterSpacing: -0.3 }}>Profile</h1>
+        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 18px', letterSpacing: -0.3 }}>
+          Profile & Account
+        </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{
@@ -34,14 +171,17 @@ export default function ProfileScreen() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 20, fontWeight: 700, color: '#fff',
             border: '2px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 4px 14px rgba(0,180,216,0.3)',
           }}>
-            JM
+            {initials}
           </div>
           <div>
-            <div style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>Jamie Mitchell</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 }}>jamie@example.com</div>
+            <div style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>{fullName}</div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 }}>
+              @{username} · {email}
+            </div>
             <div style={{ color: '#48cbe0', fontSize: 12, fontWeight: 500, marginTop: 3 }}>
-              HydraFlow Pro · Member since 2025
+              HydraFlow Active · Account ID: {currentUser?.id.substring(0, 10) || 'Active'}
             </div>
           </div>
         </div>
@@ -49,43 +189,264 @@ export default function ProfileScreen() {
 
       <div style={{ padding: '0 20px', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* Personal info */}
-        <SectionCard title="Personal Information">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[
-              { label: 'Age', value: '28' },
-              { label: 'Weight', value: '72 kg' },
-              { label: 'Height', value: '178 cm' },
-              { label: 'Sex', value: 'Male' },
-            ].map((item) => (
-              <div key={item.label} style={{
-                background: '#f8faff',
-                borderRadius: 12,
-                padding: '12px 13px',
-                border: '1px solid rgba(10,108,188,0.07)',
-              }}>
-                <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 3 }}>{item.label}</div>
-                <div style={{ color: '#0d1b2a', fontSize: 16, fontWeight: 600 }}>{item.value}</div>
+        {/* ── SECURITY & PASSWORD CARD ── */}
+        <SectionCard title="Account Security">
+          {!showPasswordChange ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 600 }}>Password</div>
+                  <div style={{ color: '#8aaac8', fontSize: 12 }}>Last changed recently</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordChange(true)}
+                  style={{
+                    background: '#f0f6ff',
+                    border: '1px solid rgba(10,108,188,0.2)',
+                    borderRadius: 10,
+                    padding: '8px 14px',
+                    color: '#0a6cbc',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                  }}
+                >
+                  Change Password
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ color: '#0a6cbc', fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                Update Your Password
+              </div>
+
+              {passError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px', color: '#b91c1c', fontSize: 12 }}>
+                  ⚠️ {passError}
+                </div>
+              )}
+              {passSuccess && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '8px 10px', color: '#15803d', fontSize: 12 }}>
+                  ✅ {passSuccess}
+                </div>
+              )}
+
+              <input
+                type="password"
+                placeholder="Current Password"
+                value={currentPass}
+                onChange={(e) => setCurrentPass(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  background: '#f8faff',
+                  border: '1px solid #d1dbe8',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <input
+                type="password"
+                placeholder="New Password (min 6 chars)"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  background: '#f8faff',
+                  border: '1px solid #d1dbe8',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                value={confirmNewPass}
+                onChange={(e) => setConfirmNewPass(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  background: '#f8faff',
+                  border: '1px solid #d1dbe8',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  type="submit"
+                  disabled={passLoading}
+                  style={{
+                    flex: 1,
+                    background: '#0a6cbc',
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: '10px',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: passLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {passLoading ? 'Saving...' : 'Save Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPasswordChange(false); setPassError(''); setPassSuccess(''); }}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: '10px 14px',
+                    color: '#64748b',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </SectionCard>
 
-        {/* Activity level */}
-        <SectionCard title="Activity Level" subtitle="Used to estimate your baseline fluid need">
+        {/* ── PERSONAL HEALTH CALIBRATION ── */}
+        <SectionCard
+          title="Physical Information"
+          subtitle="Used to calculate baseline hydration requirements"
+        >
+          {!isEditingInfo ? (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                {[
+                  { label: 'Age', value: `${profile.age || 28} yrs` },
+                  { label: 'Weight', value: `${profile.weight || 72} kg` },
+                  { label: 'Height', value: `${profile.height || 178} cm` },
+                  { label: 'Sex', value: profile.gender || 'Male' },
+                ].map((item) => (
+                  <div key={item.label} style={{
+                    background: '#f8faff',
+                    borderRadius: 12,
+                    padding: '12px 13px',
+                    border: '1px solid rgba(10,108,188,0.07)',
+                  }}>
+                    <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 3 }}>{item.label}</div>
+                    <div style={{ color: '#0d1b2a', fontSize: 16, fontWeight: 600 }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingInfo(true)}
+                style={{
+                  width: '100%',
+                  background: '#f8faff',
+                  border: '1px solid rgba(10,108,188,0.15)',
+                  borderRadius: 10,
+                  padding: '9px',
+                  color: '#0a6cbc',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'Inter, system-ui, sans-serif',
+                }}
+              >
+                Edit Physical Details
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Weight (kg)</label>
+                  <input
+                    type="number"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Height (cm)</label>
+                  <input
+                    type="number"
+                    value={editHeight}
+                    onChange={(e) => setEditHeight(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Age</label>
+                  <input
+                    type="number"
+                    value={editAge}
+                    onChange={(e) => setEditAge(e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Biological Sex</label>
+                  <select
+                    value={editGender}
+                    onChange={(e) => setEditGender(e.target.value as any)}
+                    style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', background: '#fff' }}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={handleSavePersonalInfo}
+                  style={{ flex: 1, background: '#0a6cbc', color: '#fff', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingInfo(false)}
+                  style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 8, padding: '9px 12px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* ── ACTIVITY LEVEL ── */}
+        <SectionCard title="Activity Level" subtitle="Recalibrates your baseline fluid target">
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {activityLevels.map((level) => (
               <button
                 key={level}
-                onClick={() => setActivity(level)}
+                type="button"
+                onClick={() => handleActivityChange(level)}
                 style={{
-                  background: activity === level ? '#0a6cbc' : '#f2f5f9',
-                  border: activity === level ? '1.5px solid #0a6cbc' : '1.5px solid transparent',
+                  background: profile.activityLevel === level ? '#0a6cbc' : '#f2f5f9',
+                  border: profile.activityLevel === level ? '1.5px solid #0a6cbc' : '1.5px solid transparent',
                   borderRadius: 10,
                   padding: '8px 13px',
-                  color: activity === level ? '#fff' : '#5a7a9a',
+                  color: profile.activityLevel === level ? '#fff' : '#5a7a9a',
                   fontSize: 13,
-                  fontWeight: activity === level ? 600 : 400,
+                  fontWeight: profile.activityLevel === level ? 600 : 400,
                   cursor: 'pointer',
                   fontFamily: 'Inter, system-ui, sans-serif',
                   transition: 'all 0.18s',
@@ -98,22 +459,23 @@ export default function ProfileScreen() {
           </div>
         </SectionCard>
 
-        {/* Sweat rate */}
-        <SectionCard title="Sweat Rate" subtitle="Helps calibrate your electrolyte estimates">
+        {/* ── SWEAT RATE ── */}
+        <SectionCard title="Sweat Rate" subtitle="Estimates electrolyte depletion rate">
           <div style={{ display: 'flex', gap: 6 }}>
             {sweatRates.map((rate) => (
               <button
                 key={rate}
-                onClick={() => setSweatRate(rate)}
+                type="button"
+                onClick={() => handleSweatRateChange(rate)}
                 style={{
                   flex: 1,
-                  background: sweatRate === rate ? 'rgba(8,145,178,0.1)' : '#f2f5f9',
-                  border: sweatRate === rate ? '1.5px solid #0891b2' : '1.5px solid transparent',
+                  background: profile.sweatRate === rate ? 'rgba(8,145,178,0.1)' : '#f2f5f9',
+                  border: profile.sweatRate === rate ? '1.5px solid #0891b2' : '1.5px solid transparent',
                   borderRadius: 10,
                   padding: '8px 4px',
-                  color: sweatRate === rate ? '#0891b2' : '#5a7a9a',
+                  color: profile.sweatRate === rate ? '#0891b2' : '#5a7a9a',
                   fontSize: 12,
-                  fontWeight: sweatRate === rate ? 600 : 400,
+                  fontWeight: profile.sweatRate === rate ? 600 : 400,
                   cursor: 'pointer',
                   fontFamily: 'Inter, system-ui, sans-serif',
                   transition: 'all 0.18s',
@@ -127,40 +489,29 @@ export default function ProfileScreen() {
           </div>
         </SectionCard>
 
-        {/* Connections & Permissions */}
-        <SectionCard title="Connections & Permissions">
+        {/* ── CONNECTIONS & SENSORS ── */}
+        <SectionCard title="Connections & Sensors">
           {[
             {
               label: 'Location & Weather',
-              sub: locationEnabled ? 'Enabled — real-time adjustments active' : 'Disabled — using default targets',
+              sub: profile.locationEnabled ? 'Active — Real-time weather adaptation' : 'Disabled — Standard baseline used',
               icon: '📍',
-              state: locationEnabled,
-              toggle: () => setLocationEnabled(!locationEnabled),
-              connected: locationEnabled,
+              state: profile.locationEnabled,
+              toggle: () => handleToggle('locationEnabled'),
             },
             {
-              label: 'Calendar',
-              sub: calendarConnected ? 'Google Calendar connected' : 'Not connected',
+              label: 'Calendar Sync',
+              sub: profile.calendarConnected ? 'Connected — Workout & commute awareness' : 'Disconnected',
               icon: '📅',
-              state: calendarConnected,
-              toggle: () => setCalendarConnected(!calendarConnected),
-              connected: calendarConnected,
+              state: profile.calendarConnected,
+              toggle: () => handleToggle('calendarConnected'),
             },
             {
-              label: 'Smart Bottle',
-              sub: 'HydraFlow Pro · Connected',
-              icon: '🔗',
-              state: true,
-              toggle: () => {},
-              connected: true,
-            },
-            {
-              label: 'Notifications',
-              sub: notifications ? 'Hydration reminders on' : 'Reminders paused',
+              label: 'Hydration Reminders',
+              sub: profile.notificationsEnabled ? 'Enabled — Context-aware notifications' : 'Muted',
               icon: '🔔',
-              state: notifications,
-              toggle: () => setNotifications(!notifications),
-              connected: notifications,
+              state: profile.notificationsEnabled,
+              toggle: () => handleToggle('notificationsEnabled'),
             },
           ].map((item, i, arr) => (
             <div key={item.label} style={{
@@ -182,7 +533,7 @@ export default function ProfileScreen() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ color: '#0d1b2a', fontSize: 14, fontWeight: 500 }}>{item.label}</div>
                 <div style={{
-                  color: item.connected ? '#22c55e' : '#94a3b8',
+                  color: item.state ? '#22c55e' : '#94a3b8',
                   fontSize: 11, marginTop: 2,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
@@ -194,47 +545,33 @@ export default function ProfileScreen() {
           ))}
         </SectionCard>
 
-        {/* Hydration preferences */}
-        <SectionCard title="Hydration Preferences">
-          {[
-            { label: 'Daily base target', value: '2.0 L' },
-            { label: 'Reminder style', value: 'Gentle' },
-            { label: 'Preferred drink size', value: '250 mL' },
-          ].map((pref, i, arr) => (
-            <div key={pref.label} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              minHeight: 44,
-              paddingBottom: i < arr.length - 1 ? 2 : 0,
-              marginBottom: i < arr.length - 1 ? 2 : 0,
-              borderBottom: i < arr.length - 1 ? '1px solid #f2f5f9' : 'none',
-            }}>
-              <div style={{ color: '#0d1b2a', fontSize: 14 }}>{pref.label}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: '#0a6cbc', fontSize: 14, fontWeight: 600 }}>{pref.value}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0bec8" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </div>
-            </div>
-          ))}
-        </SectionCard>
-
-        {/* Sign out */}
-        <button style={{
-          background: 'rgba(239,68,68,0.06)',
-          border: '1px solid rgba(239,68,68,0.14)',
-          borderRadius: 16,
-          padding: '15px',
-          color: '#ef4444',
-          fontSize: 15,
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          minHeight: 52,
-        }}>
-          Sign Out
+        {/* ── SIGN OUT / LOGOUT ── */}
+        <button
+          type="button"
+          onClick={onSignOut}
+          style={{
+            background: 'rgba(239,68,68,0.06)',
+            border: '1px solid rgba(239,68,68,0.18)',
+            borderRadius: 16,
+            padding: '16px',
+            color: '#ef4444',
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            minHeight: 52,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Sign Out of Account
         </button>
       </div>
     </div>
@@ -262,6 +599,7 @@ function SectionCard({ title, subtitle, children }: { title: string; subtitle?: 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     <button
+      type="button"
       onClick={onToggle}
       aria-pressed={on}
       style={{
