@@ -70,6 +70,7 @@ export default function App() {
   })
 
   const [activeScreen, setActiveScreen] = useState<Screen>('home')
+  const [isRerunningWizard, setIsRerunningWizard] = useState(false)
 
   // Real-time clock
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -97,6 +98,7 @@ export default function App() {
     if (currentUser) {
       const updated = authService.completeDetailedOnboarding(currentUser.id, detailedProfile)
       setCurrentUser(updated)
+      setIsRerunningWizard(false)
     }
   }
 
@@ -105,6 +107,7 @@ export default function App() {
     authService.logout()
     setCurrentUser(null)
     setActiveScreen('home')
+    setIsRerunningWizard(false)
   }
 
   return (
@@ -131,8 +134,8 @@ export default function App() {
         {/* 1. If not logged in -> Show Auth Screen */}
         {!currentUser ? (
           <AuthScreen onAuthSuccess={handleAuthSuccess} formattedTime={formattedTime} />
-        ) : !currentUser.onboarded ? (
-          /* 2. If logged in but hasn't completed onboarding -> Show Onboarding Screen */
+        ) : (!currentUser.onboarded || isRerunningWizard) ? (
+          /* 2. If logged in but hasn't completed onboarding OR wants to re-run wizard -> Show Onboarding Screen */
           <OnboardingScreen onComplete={handleCompleteOnboarding} formattedTime={formattedTime} />
         ) : (
           /* 3. If logged in & onboarded -> Show Main App */
@@ -186,6 +189,7 @@ export default function App() {
                   currentUser={currentUser}
                   onProfileUpdate={(u) => setCurrentUser(u)}
                   onSignOut={handleSignOut}
+                  onRerunOnboarding={() => setIsRerunningWizard(true)}
                 />
               )}
             </div>
